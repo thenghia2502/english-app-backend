@@ -36,4 +36,24 @@ export class WordService {
     if (error) throw new Error(error.message);
     return data || [];
   }
+
+  async getWordsByUnits(unitIds: string[]): Promise<any> {
+    const { data, error } = await this.supabase
+      .from('vw_words_units')
+      .select('*')
+      .in('unit_id', unitIds);
+    if (error) throw new Error(error.message);
+    return data || [];
+  }
+
+  async addWord(wordData: {
+    word: string;
+    ipa: string;
+    definition: string;
+    example: string;
+  }): Promise<any> {
+    const { data, error } = await this.supabase.from('words').insert(wordData);
+    if (error) throw new Error(error.message);
+    return data;
+  }
 }

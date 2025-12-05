@@ -263,6 +263,8 @@ export type Database = {
           popularity: number | null;
           updated_at: string | null;
           word: string;
+          uk_ipa: string | null;
+          us_ipa: string | null;
         };
         Insert: {
           created_at?: string | null;
@@ -273,6 +275,8 @@ export type Database = {
           popularity?: number | null;
           updated_at?: string | null;
           word: string;
+          uk_ipa?: string | null;
+          us_ipa?: string | null;
         };
         Update: {
           created_at?: string | null;
@@ -283,6 +287,8 @@ export type Database = {
           popularity?: number | null;
           updated_at?: string | null;
           word?: string;
+          uk_ipa?: string | null;
+          us_ipa?: string | null;
         };
         Relationships: [
           {
@@ -298,14 +304,17 @@ export type Database = {
         Row: {
           unit_id: string;
           word_id: string;
+          user_id: string;
         };
         Insert: {
           unit_id: string;
           word_id: string;
+          user_id: string;
         };
         Update: {
           unit_id?: string;
           word_id?: string;
+          user_id?: string;
         };
         Relationships: [
           {
@@ -322,28 +331,141 @@ export type Database = {
             referencedRelation: 'words';
             referencedColumns: ['id'];
           },
+          {
+            foreignKeyName: 'words_units_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'auth.users';
+            referencedColumns: ['id'];
+          },
         ];
       };
     };
     Views: {
-      [_ in never]: never;
+      vw_lesson_full: {
+        Row: {
+          lesson_id: string | null;
+          lesson_name: string | null;
+          curriculum_name: string | null;
+          unit_ids: Json | null;
+          lesson_words: Json | null;
+          lesson_progress: string | null;
+        };
+        Insert: {
+          lesson_id?: never;
+          lesson_name?: never;
+          curriculum_name?: never;
+          units?: never;
+          lesson_words?: never;
+          lesson_progress?: never;
+        };
+        Update: {
+          lesson_id?: never;
+          lesson_name?: never;
+          curriculum_name?: never;
+          units?: never;
+          lesson_words?: never;
+          lesson_progress?: never;
+        };
+        Relationships: [];
+      };
+      vw_curriculum_full: {
+        Row: {
+          created_at: string | null;
+          curriculum_id: string | null;
+          curriculum_name: string | null;
+          units: Json | null;
+          updated_at: string | null;
+          levels: Json | null;
+        };
+        Insert: {
+          created_at?: string | null;
+          curriculum_id?: string | null;
+          curriculum_name?: string | null;
+          units?: never;
+          updated_at?: string | null;
+          levels?: never;
+        };
+        Update: {
+          created_at?: string | null;
+          curriculum_id?: string | null;
+          curriculum_name?: string | null;
+          units?: never;
+          updated_at?: string | null;
+          levels?: never;
+        };
+        Relationships: [];
+      };
+      vw_words_units: {
+        Row: {
+          unit_id: string | null;
+          unit_name: string | null;
+          unit_order: number | null;
+          unit_words: Json | null;
+        };
+        Insert: {
+          unit_id: string | null;
+          unit_name: string | null;
+          unit_order: number | null;
+          unit_words: Json | null;
+        };
+        Update: {
+          unit_id?: string | null;
+          unit_name?: string | null;
+          unit_order?: number | null;
+          unit_words?: Json | null;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
       create_lesson_with_units: {
         Args: {
           p_name: string;
-          p_curriculum_id?: string | null;
-          p_order?: number | null;
+          p_curriculum_id: string;
+          p_order: number;
           p_unit_ids: string[];
+          p_words: Json[];
         };
         Returns: {
           lesson: Database['public']['Tables']['lesson']['Row'];
           lesson_units: {
-            lesson_id: string;
             unit_id: string;
             unit_title: string;
+            unit_words: {
+              word_id: string;
+              word_text: string;
+            }[];
+          }[];
+          lesson_words: {
+            word_id: string;
+            word_text: string;
           }[];
         };
+      };
+      fn_update_lesson_progress: {
+        Args: {
+          p_lesson_id: string;
+          p_name: string;
+          p_order: number;
+          p_unit_ids: string[];
+          p_words: Json;
+        };
+        Returns: Json;
+      };
+      update_lesson_words_bulk: {
+        Args: {
+          p_lesson_id: string;
+          p_words: Json[];
+        };
+        Returns: boolean;
+      };
+      add_word_to_unit: {
+        Args: {
+          p_unit_id: string;
+          p_word_id: string;
+        };
+        Returns: Json;
       };
     };
     Enums: {

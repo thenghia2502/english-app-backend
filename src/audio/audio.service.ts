@@ -1,18 +1,19 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { Database } from './word/database.types';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { Database } from 'src/word/database.types';
+import { GetAudioUrlDto } from './get-audio-url.dto';
 
 @Injectable()
-export class AppService {
+export class AudioService {
   constructor(
     @Inject('SUPABASE_CLIENT')
     private readonly supabase: SupabaseClient<Database>,
   ) {}
 
-  async getHello() {
+  async getSignedUrl(dto: GetAudioUrlDto) {
     const { data, error } = await this.supabase.storage
       .from('store')
-      .createSignedUrl('audio/familial_img2_uk.mp3', 60);
+      .createSignedUrl(dto.filePath, dto.expiresIn);
 
     if (error) {
       console.error(error);

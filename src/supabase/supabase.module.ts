@@ -9,6 +9,24 @@ dotenv.config();
 @Module({
   providers: [
     {
+      provide: 'SUPABASE_SERVER',
+      useFactory: (configService: ConfigService): SupabaseClient<Database> => {
+        const supabaseUrl = configService.get<string>('SUPABASE_URL');
+        const supabaseKey = configService.get<string>(
+          'SUPABASE_SERVICE_ROLE_KEY',
+        );
+
+        if (!supabaseUrl || !supabaseKey) {
+          throw new Error(
+            'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be defined in environment variables',
+          );
+        }
+
+        return createClient<Database>(supabaseUrl, supabaseKey);
+      },
+      inject: [ConfigService],
+    },
+    {
       provide: 'SUPABASE_CLIENT',
       useFactory: (configService: ConfigService): SupabaseClient<Database> => {
         const supabaseUrl = configService.get<string>('SUPABASE_URL');
@@ -25,6 +43,6 @@ dotenv.config();
       inject: [ConfigService],
     },
   ],
-  exports: ['SUPABASE_CLIENT'],
+  exports: ['SUPABASE_CLIENT', 'SUPABASE_SERVER'],
 })
 export class SupabaseModule {}
