@@ -43,6 +43,16 @@ export class WordService {
       .select('*')
       .in('unit_id', unitIds);
     if (error) throw new Error(error.message);
+
+    return data;
+  }
+
+  async getChildWords(parentId: string): Promise<any> {
+    const { data, error } = await this.supabase
+      .from('words')
+      .select('ipa, id, word, meaning, parent_id')
+      .eq('parent_id', parentId);
+    if (error) throw new Error(error.message);
     return data || [];
   }
 

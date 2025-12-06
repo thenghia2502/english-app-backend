@@ -398,10 +398,25 @@ export type Database = {
       };
       vw_words_units: {
         Row: {
-          unit_id: string | null;
+          unit_id: string;
           unit_name: string | null;
           unit_order: number | null;
-          unit_words: Json | null;
+          unit_words: {
+            original: {
+              ipa: string;
+              word: string;
+              meaning: string;
+              word_id: string;
+              parent_id: string | null;
+            }[];
+            custom: {
+              ipa: string;
+              word: string;
+              meaning: string;
+              word_id: string;
+              parent_id: string | null;
+            }[];
+          };
         };
         Insert: {
           unit_id: string | null;
@@ -463,6 +478,12 @@ export type Database = {
       add_word_to_unit: {
         Args: {
           p_unit_id: string;
+          p_word_id: string;
+        };
+        Returns: Json;
+      };
+      get_child_words: {
+        Args: {
           p_word_id: string;
         };
         Returns: Json;

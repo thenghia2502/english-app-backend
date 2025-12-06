@@ -23,6 +23,11 @@ export class WordController {
     return this.wordService.getWordsByUnits(ids);
   }
 
+  @Get('child-of/:wordId')
+  getChildWords(@Param('wordId') wordId: string) {
+    return this.wordService.getChildWords(wordId);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get(':id')
   getWordById(@Param('id') id: string) {
