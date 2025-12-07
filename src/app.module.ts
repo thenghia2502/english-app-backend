@@ -14,6 +14,7 @@ import { AuthModule } from './auth/auth.module';
 import { DictionaryService } from './dictionary/dictionary.service';
 import { DictionaryController } from './dictionary/dictionary.controller';
 import { AudioDownloadModule } from './audioDownload/audioDownload.module';
+import { AudioDownloadService } from './audioDownload/audioDownload.service';
 
 @Module({
   imports: [
@@ -32,6 +33,11 @@ import { AudioDownloadModule } from './audioDownload/audioDownload.module';
     AudioDownloadModule,
   ],
   controllers: [AppController, DictionaryController],
-  providers: [AppService, JwtAuthGuard, DictionaryService],
+  providers: [
+    AppService,
+    JwtAuthGuard,
+    DictionaryService,
+    AudioDownloadService,
+  ],
 })
 export class AppModule {}

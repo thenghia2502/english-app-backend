@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import { AudioDownloadService } from 'src/audioDownload/audioDownload.service';
 import { Database } from 'src/word/database.types';
 
 @Injectable()
@@ -11,6 +12,7 @@ export class DictionaryService {
   constructor(
     @Inject('SUPABASE_CLIENT')
     private readonly supabase: SupabaseClient<Database>,
+    private readonly audioDownloadService: AudioDownloadService,
   ) {}
   private cache: Record<
     string,
@@ -103,7 +105,12 @@ export class DictionaryService {
         ukIPA: insertedWord.uk_ipa,
         usIPA: insertedWord.us_ipa,
         meaning: insertedWord.meaning,
+        ukSingleUrl: '',
+        usSingleUrl: '',
       };
+
+      // Tải audio UK/US và upload lên Supabase storage
+      await this.audioDownloadService.process(key);
 
       // 5️⃣ Lưu cache
       this.cache[key] = result;

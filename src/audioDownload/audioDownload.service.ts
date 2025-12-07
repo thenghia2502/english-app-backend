@@ -12,9 +12,9 @@ export class AudioDownloadService {
   private readonly logger = new Logger(AudioDownloadService.name);
 
   constructor(
-    @Inject('SUPABASE_CLIENT')
+    @Inject('SUPABASE_SERVER')
     private readonly supabase: SupabaseClient<Database>,
-  ) {}
+  ) { }
 
   /** Lấy link audio từ file JSON */
   async getAudioUrls(word: string) {
@@ -97,51 +97,95 @@ export class AudioDownloadService {
 
   /** MAIN FUNCTION */
   async process(word: string) {
-    // Lấy object { ukUrl, usUrl }
-    const urls = await this.getAudioUrls(word);
-
-    if (!urls.ukUrl && !urls.usUrl) {
-      return {
-        success: false,
-        word,
-        message: `Không tìm thấy audio trong danh sách cho từ "${word}"`,
-      };
-    }
-
     const result: {
       success: boolean;
       word: string;
-      sources: { ukUrl?: string; usUrl?: string };
-      storageUrls: { ukStorageUrl?: string; usStorageUrl?: string };
+      sources: { ukUrl: string; usUrl: string };
+      storageUrls: { ukStorageUrl: string; usStorageUrl: string };
     } = {
       success: true,
       word,
-      sources: {},
-      storageUrls: {},
+      sources: {
+        ukUrl: '',
+        usUrl: '',
+      },
+      storageUrls: {
+        ukStorageUrl: '',
+        usStorageUrl: '',
+      },
     };
 
-    // Xử lý UK
-    if (urls.ukUrl) {
-      const ukBuffer = await this.downloadAudio(urls.ukUrl);
-      const ukStorageUrl = await this.uploadToSupabase(
-        `audio/uk/${word}.mp3`,
-        ukBuffer,
-      );
-      result.sources.ukUrl = urls.ukUrl;
-      result.storageUrls.ukStorageUrl = ukStorageUrl;
-    }
+    const { data: ukSigned, error: ukErr } = await this.supabase.storage
+      .from('store')
+      .createSignedUrl(`audio/uk/${word}.mp3`, 60);
 
-    // Xử lý US
-    if (urls.usUrl) {
-      const usBuffer = await this.downloadAudio(urls.usUrl);
-      const usStorageUrl = await this.uploadToSupabase(
-        `audio/us/${word}.mp3`,
-        usBuffer,
-      );
-      result.sources.usUrl = urls.usUrl;
-      result.storageUrls.usStorageUrl = usStorageUrl;
-    }
+    if (ukErr) {
+      // console.error(error);
+      // throw new Error('Failed to create signed URL');
+      // Lấy object { ukUrl, usUrl }
+      const urls = await this.getAudioUrls(word);
 
+      if (!urls.ukUrl) {
+        return {
+          success: false,
+          word,
+          message: `Không tìm thấy audio trong danh sách cho từ "${word}"`,
+          sources: { ukUrl: '', usUrl: '' },
+          storageUrls: { ukStorageUrl: '', usStorageUrl: '' },
+        };
+      }
+
+      // Xử lý UK
+      if (urls.ukUrl) {
+        const ukBuffer = await this.downloadAudio(urls.ukUrl);
+        const ukStorageUrl = await this.uploadToSupabase(
+          `audio/uk/${word}.mp3`,
+          ukBuffer,
+        );
+        result.sources.ukUrl = urls.ukUrl;
+        result.storageUrls.ukStorageUrl = ukStorageUrl;
+      }
+
+      // return result;
+    }
+    result.sources.ukUrl = ukSigned?.signedUrl || '';
+    result.storageUrls.ukStorageUrl = ukSigned?.signedUrl || '';
+
+    const { data: usSigned, error: usErr } = await this.supabase.storage
+      .from('store')
+      .createSignedUrl(`audio/us/${word}.mp3`, 60);
+
+    if (usErr) {
+      // console.error(error);
+      // throw new Error('Failed to create signed URL');
+      // Lấy object { ukUrl, usUrl }
+      const urls = await this.getAudioUrls(word);
+
+      if (!urls.usUrl) {
+        return {
+          success: false,
+          word,
+          message: `Không tìm thấy audio trong danh sách cho từ "${word}"`,
+          sources: { ukUrl: '', usUrl: '' },
+          storageUrls: { ukStorageUrl: '', usStorageUrl: '' },
+        };
+      }
+
+      // Xử lý US
+      if (urls.usUrl) {
+        const usBuffer = await this.downloadAudio(urls.usUrl);
+        const usStorageUrl = await this.uploadToSupabase(
+          `audio/us/${word}.mp3`,
+          usBuffer,
+        );
+        result.sources.usUrl = urls.usUrl;
+        result.storageUrls.usStorageUrl = usStorageUrl;
+      }
+
+      // return result;
+    }
+    result.sources.usUrl = usSigned?.signedUrl || '';
+    result.storageUrls.usStorageUrl = usSigned?.signedUrl || '';
     return result;
   }
 }

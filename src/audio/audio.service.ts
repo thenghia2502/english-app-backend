@@ -6,7 +6,7 @@ import { GetAudioUrlDto } from './get-audio-url.dto';
 @Injectable()
 export class AudioService {
   constructor(
-    @Inject('SUPABASE_CLIENT')
+    @Inject('SUPABASE_SERVER')
     private readonly supabase: SupabaseClient<Database>,
   ) {}
 
