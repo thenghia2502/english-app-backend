@@ -15,10 +15,10 @@ export class UnitService {
     return data;
   }
 
-  async addWordToUnit(unitId: string, wordId: string) {
+  async addWordToUnit(unitId: string, wordIds: string[]) {
     const { data, error } = await this.supabase.rpc('add_word_to_unit', {
       p_unit_id: unitId,
-      p_word_id: wordId,
+      p_word_ids: wordIds,
     });
     if (error) throw new Error(error.message);
     return data;

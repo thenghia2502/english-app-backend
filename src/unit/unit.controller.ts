@@ -13,7 +13,7 @@ export class UnitController {
 
   @UseGuards(JwtAuthGuard)
   @Post('/add-word')
-  async addWordToUnit(@Body() body: { unitId: string; wordId: string }) {
-    return await this.unitService.addWordToUnit(body.unitId, body.wordId);
+  async addWordToUnit(@Body() body: { unitId: string; wordIds: string[] }) {
+    return await this.unitService.addWordToUnit(body.unitId, body.wordIds);
   }
 }

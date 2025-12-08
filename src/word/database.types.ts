@@ -478,9 +478,9 @@ export type Database = {
       add_word_to_unit: {
         Args: {
           p_unit_id: string;
-          p_word_id: string;
+          p_word_ids: string[];
         };
-        Returns: Json;
+        Returns: boolean;
       };
       get_child_words: {
         Args: {
