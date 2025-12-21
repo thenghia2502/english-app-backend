@@ -15,6 +15,7 @@ import { DictionaryService } from './dictionary/dictionary.service';
 import { DictionaryController } from './dictionary/dictionary.controller';
 import { AudioDownloadModule } from './audioDownload/audioDownload.module';
 import { AudioDownloadService } from './audioDownload/audioDownload.service';
+import { FileModule } from './file/file.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { AudioDownloadService } from './audioDownload/audioDownload.service';
     ProfileModule,
     AuthModule,
     AudioDownloadModule,
+    FileModule,
   ],
   controllers: [AppController, DictionaryController],
   providers: [

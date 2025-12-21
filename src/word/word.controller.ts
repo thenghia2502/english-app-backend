@@ -39,9 +39,9 @@ export class WordController {
     @Param('word')
     word: {
       word: string;
-      ipa: string;
-      definition: string;
-      example: string;
+      ipa_uk: string;
+      ipa_us: string;
+      meaning: string;
     },
   ) {
     return this.wordService.addWord(word);

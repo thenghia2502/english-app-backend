@@ -488,6 +488,13 @@ export type Database = {
         };
         Returns: Json;
       };
+      check_word_in_unit: {
+        Args: {
+          p_unit_id: string;
+          p_word_id: string;
+        };
+        Returns: boolean;
+      };
     };
     Enums: {
       [_ in never]: never;

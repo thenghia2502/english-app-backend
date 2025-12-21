@@ -7,6 +7,9 @@ export class UnitService {
   constructor(
     @Inject('SUPABASE_CLIENT')
     private readonly supabase: SupabaseClient<Database>,
+
+    @Inject('SUPABASE_SERVER')
+    private readonly supabaseServer: SupabaseClient<Database>,
   ) {}
 
   async getAllUnits() {
@@ -20,6 +23,19 @@ export class UnitService {
       p_unit_id: unitId,
       p_word_ids: wordIds,
     });
+    if (error) throw new Error(error.message);
+    return data;
+  }
+
+  async checkWordInUnit(unitId: string, wordId: string) {
+    const { data, error } = await this.supabaseServer.rpc(
+      'check_word_in_unit',
+      {
+        p_unit_id: unitId,
+        p_word_id: wordId,
+      },
+    );
+
     if (error) throw new Error(error.message);
     return data;
   }
