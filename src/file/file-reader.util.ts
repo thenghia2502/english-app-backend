@@ -2,7 +2,18 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
 
-export async function readFileFromClient(filePath: string) {
+export type ImportedRow = {
+  word?: string;
+  text?: string;
+  ipa_uk?: string;
+  ipa_us?: string;
+  meaning?: string;
+  id?: string;
+} & Record<string, unknown>;
+
+export async function readFileFromClient(
+  filePath: string,
+): Promise<ImportedRow[]> {
   const ext = path.extname(filePath).toLowerCase();
 
   // Handle Excel files separately
@@ -14,13 +25,16 @@ export async function readFileFromClient(filePath: string) {
   return parseFileContent(content, ext);
 }
 
-export function parseFileContent(content: string, extOrFilename: string) {
+export function parseFileContent(
+  content: string,
+  extOrFilename: string,
+): ImportedRow[] {
   const ext = extOrFilename.startsWith('.')
     ? extOrFilename.toLowerCase()
     : path.extname(extOrFilename).toLowerCase();
 
   if (ext === '.json') {
-    return JSON.parse(content);
+    return normalizeJsonContent(content);
   }
 
   if (ext === '.csv') {
@@ -37,7 +51,7 @@ export function parseFileContent(content: string, extOrFilename: string) {
 
   if (ext === '.xlsx' || ext === '.xls') {
     // For buffer uploads, convert to JSON manually
-    return parseExcelBuffer(content, ext);
+    return parseExcelBuffer(content);
   }
 
   // Heuristic auto-detection when extension is missing/unsupported
@@ -46,15 +60,24 @@ export function parseFileContent(content: string, extOrFilename: string) {
 
   // Try JSON first (handles JSON and JSON Lines when split)
   try {
-    const parsed = JSON.parse(trimmed);
-    return parsed;
-  } catch (_) {
+    return normalizeJsonContent(trimmed);
+  } catch {
     // Try JSON Lines (one JSON per line)
     const lines = trimmed.split(/\r?\n/);
-    if (lines.every((l) => {
-      try { JSON.parse(l); return true; } catch { return false; }
-    })) {
-      return lines.map((l) => JSON.parse(l));
+    if (
+      lines.every((line) => {
+        try {
+          JSON.parse(line);
+          return true;
+        } catch {
+          return false;
+        }
+      })
+    ) {
+      return lines.flatMap((line) => {
+        const parsedLine: unknown = JSON.parse(line);
+        return normalizeParsedJson(parsedLine);
+      });
     }
   }
 
@@ -74,35 +97,35 @@ export function parseFileContent(content: string, extOrFilename: string) {
   return trimmed.split(/\r?\n/).map((line) => ({ line }));
 }
 
-function csvToJson(content: string) {
+function csvToJson(content: string): ImportedRow[] {
   const lines = content.trim().split('\n');
   const headers = lines[0].split(',');
 
   return lines.slice(1).map((line) => {
     const values = line.split(',');
-    const obj: any = {};
-    headers.forEach((h, i) => {
-      obj[h.trim()] = values[i]?.trim();
+    const obj: Record<string, string | undefined> = {};
+    headers.forEach((header, index) => {
+      obj[header.trim()] = values[index]?.trim();
     });
-    return obj;
+    return obj as ImportedRow;
   });
 }
 
-function tsvToJson(content: string) {
+function tsvToJson(content: string): ImportedRow[] {
   const lines = content.trim().split('\n');
   const headers = lines[0].split('\t');
 
   return lines.slice(1).map((line) => {
     const values = line.split('\t');
-    const obj: any = {};
-    headers.forEach((h, i) => {
-      obj[h.trim()] = values[i]?.trim();
+    const obj: Record<string, string | undefined> = {};
+    headers.forEach((header, index) => {
+      obj[header.trim()] = values[index]?.trim();
     });
-    return obj;
+    return obj as ImportedRow;
   });
 }
 
-function txtToJson(content: string) {
+function txtToJson(content: string): ImportedRow[] {
   // format: word|meaning|ipa
   return content
     .split('\n')
@@ -113,18 +136,20 @@ function txtToJson(content: string) {
     });
 }
 
-function parseExcelFile(filePath: string) {
+function parseExcelFile(filePath: string): ImportedRow[] {
   try {
     const workbook = XLSX.readFile(filePath);
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
-    return XLSX.utils.sheet_to_json(sheet);
+    return XLSX.utils.sheet_to_json<ImportedRow>(sheet);
   } catch (error) {
-    throw new Error(`Failed to parse Excel file: ${error.message}`);
+    throw new Error(
+      `Failed to parse Excel file: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }
 
-function parseExcelBuffer(content: string, ext: string) {
+function parseExcelBuffer(content: string): ImportedRow[] {
   try {
     // For buffer uploads, content would be binary string
     // We need to convert it back to Buffer for xlsx to read
@@ -132,19 +157,48 @@ function parseExcelBuffer(content: string, ext: string) {
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
-    return XLSX.utils.sheet_to_json(sheet);
+    return XLSX.utils.sheet_to_json<ImportedRow>(sheet);
   } catch (error) {
-    throw new Error(`Failed to parse Excel file: ${error.message}`);
+    throw new Error(
+      `Failed to parse Excel file: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }
 
-export async function parseFileBuffer(buffer: Buffer, filename: string) {
+export function parseFileBuffer(buffer: Buffer): ImportedRow[] {
   try {
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
-    return XLSX.utils.sheet_to_json(sheet);
+    return XLSX.utils.sheet_to_json<ImportedRow>(sheet);
   } catch (error) {
-    throw new Error(`Failed to parse Excel file: ${error.message}`);
+    throw new Error(
+      `Failed to parse Excel file: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
+}
+
+function normalizeJsonContent(content: string): ImportedRow[] {
+  try {
+    const parsed: unknown = JSON.parse(content);
+    return normalizeParsedJson(parsed);
+  } catch (error) {
+    throw new Error(
+      `Failed to parse JSON content: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
+function normalizeParsedJson(parsed: unknown): ImportedRow[] {
+  if (Array.isArray(parsed)) {
+    return parsed.filter(isRecord).map((item) => item as ImportedRow);
+  }
+  if (isRecord(parsed)) {
+    return [parsed as ImportedRow];
+  }
+  return [];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
 }

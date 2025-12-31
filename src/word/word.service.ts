@@ -2,12 +2,21 @@ import { Injectable, Inject } from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Database } from './database.types';
 
+type WordId = { id: string };
+type InsertedWord = {
+  id: string;
+  word: string;
+  uk_ipa: string | null;
+  us_ipa: string | null;
+  meaning: string | null;
+};
+
 @Injectable()
 export class WordService {
   constructor(
     @Inject('SUPABASE_CLIENT')
     private readonly supabase: SupabaseClient<Database>,
-  ) { }
+  ) {}
 
   // Lấy tất cả từ
   async getAllWords(): Promise<any> {
@@ -61,7 +70,7 @@ export class WordService {
     ipa_uk: string;
     ipa_us: string;
     meaning: string;
-  }): Promise<any> {
+  }): Promise<InsertedWord> {
     const { data, error } = await this.supabase
       .from('words')
       .insert({
@@ -73,7 +82,7 @@ export class WordService {
       .select('id, word, uk_ipa, us_ipa, meaning')
       .single();
     if (error) throw new Error(error.message);
-    return data;
+    return data as InsertedWord;
   }
 
   async validWord(word: string): Promise<boolean> {
@@ -100,13 +109,13 @@ export class WordService {
     return !!data;
   }
 
-  async getWordByName(word: string): Promise<any> {
+  async getWordByName(word: string): Promise<WordId | null> {
     const { data, error } = await this.supabase
       .from('words')
       .select('id')
       .eq('word', word)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    return data;
+    return data ?? null;
   }
 }
