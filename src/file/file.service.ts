@@ -81,9 +81,13 @@ export class FileService {
       errors.push('meaning is required');
     }
 
-    // if (row.word && row.word.length > 50) {
-    //   errors.push('word is too long');
-    // }
+    if ((row.ipa_uk && typeof row.ipa_uk !== 'string') || !row.ipa_uk) {
+      errors.push('ipa_uk must be a string');
+    }
+
+    if ((row.ipa_us && typeof row.ipa_us !== 'string') || !row.ipa_us) {
+      errors.push('ipa_us must be a string');
+    }
 
     return {
       isValid: errors.length === 0,
@@ -139,12 +143,15 @@ export class FileService {
   async readFile(file: Express.Multer.File) {
     const rows = await this.parseUploadedFile(file);
     const uniqueValidRows = this.deduplicateRows(rows);
+    await this.attachWordIds(uniqueValidRows);
     const rowsValidation = this.validateImportData(uniqueValidRows);
-    await this.attachWordIds(rows);
 
     return {
       success: true,
       rows: rowsValidation,
+      b1: rows,
+      b2: uniqueValidRows,
+      b3: rowsValidation,
     };
   }
 }
