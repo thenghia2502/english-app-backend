@@ -1,6 +1,5 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { SupabaseClient } from '@supabase/supabase-js';
-import { Database } from './database.types';
+import { Injectable } from '@nestjs/common';
+import { SupabaseService } from 'src/supabase/supabase.service';
 
 type WordId = { id: string };
 type InsertedWord = {
@@ -13,21 +12,19 @@ type InsertedWord = {
 
 @Injectable()
 export class WordService {
-  constructor(
-    @Inject('SUPABASE_CLIENT')
-    private readonly supabase: SupabaseClient<Database>,
-  ) {}
-
+  constructor(private readonly supabaseService: SupabaseService) {}
   // Lấy tất cả từ
-  async getAllWords(): Promise<any> {
-    const { data, error } = await this.supabase.from('words').select('*');
+  async getAllWords(token: string): Promise<any> {
+    const supabase = this.supabaseService.createClientWithAuth(token);
+    const { data, error } = await supabase.from('words').select('*');
     if (error) throw new Error(error.message);
     return data || [];
   }
 
   // Lấy từ theo id
-  async getWordById(id: string): Promise<any> {
-    const { data, error } = await this.supabase
+  async getWordById(id: string, token: string): Promise<any> {
+    const supabase = this.supabaseService.createClientWithAuth(token);
+    const { data, error } = await supabase
       .from('words')
       .select('*')
       .eq('id', id)
@@ -37,8 +34,9 @@ export class WordService {
   }
 
   // Tìm từ theo keyword
-  async searchWords(keyword: string): Promise<any> {
-    const { data, error } = await this.supabase
+  async searchWords(keyword: string, token: string): Promise<any> {
+    const supabase = this.supabaseService.createClientWithAuth(token);
+    const { data, error } = await supabase
       .from('words')
       .select('*')
       .ilike('word', `%${keyword}%`);
@@ -46,8 +44,9 @@ export class WordService {
     return data || [];
   }
 
-  async getWordsByUnits(unitIds: string[]): Promise<any> {
-    const { data, error } = await this.supabase
+  async getWordsByUnits(unitIds: string[], token: string): Promise<any> {
+    const supabase = this.supabaseService.createClientWithAuth(token);
+    const { data, error } = await supabase
       .from('vw_words_units')
       .select('*')
       .in('unit_id', unitIds);
@@ -56,8 +55,9 @@ export class WordService {
     return data;
   }
 
-  async getChildWords(parentId: string): Promise<any> {
-    const { data, error } = await this.supabase
+  async getChildWords(parentId: string, token: string): Promise<any> {
+    const supabase = this.supabaseService.createClientWithAuth(token);
+    const { data, error } = await supabase
       .from('words')
       .select('ipa, id, word, meaning, parent_id')
       .eq('parent_id', parentId);
@@ -65,13 +65,17 @@ export class WordService {
     return data || [];
   }
 
-  async addWord(wordData: {
-    word: string;
-    ipa_uk: string;
-    ipa_us: string;
-    meaning: string;
-  }): Promise<InsertedWord> {
-    const { data, error } = await this.supabase
+  async addWord(
+    wordData: {
+      word: string;
+      ipa_uk: string;
+      ipa_us: string;
+      meaning: string;
+    },
+    token: string,
+  ): Promise<InsertedWord> {
+    const supabase = this.supabaseService.createClientWithAuth(token);
+    const { data, error } = await supabase
       .from('words')
       .insert({
         word: wordData.word,
@@ -99,8 +103,12 @@ export class WordService {
     return false;
   }
 
-  async checkWordExistsInWordsTable(word: string): Promise<boolean> {
-    const { data, error } = await this.supabase
+  async checkWordExistsInWordsTable(
+    word: string,
+    token: string,
+  ): Promise<boolean> {
+    const supabase = this.supabaseService.createClientWithAuth(token);
+    const { data, error } = await supabase
       .from('words')
       .select('id')
       .eq('word', word)
@@ -109,8 +117,9 @@ export class WordService {
     return !!data;
   }
 
-  async getWordByName(word: string): Promise<WordId | null> {
-    const { data, error } = await this.supabase
+  async getWordByName(word: string, token: string): Promise<WordId | null> {
+    const supabase = this.supabaseService.createClientWithAuth(token);
+    const { data, error } = await supabase
       .from('words')
       .select('id')
       .eq('word', word)

@@ -11,11 +11,12 @@ import { AudioModule } from './audio/audio.module';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { ProfileModule } from './profile/profile.module';
 import { AuthModule } from './auth/auth.module';
-import { DictionaryService } from './dictionary/dictionary.service';
-import { DictionaryController } from './dictionary/dictionary.controller';
+import { DictionaryModule } from './dictionary/dictionary.module';
 import { AudioDownloadModule } from './audioDownload/audioDownload.module';
 import { AudioDownloadService } from './audioDownload/audioDownload.service';
 import { FileModule } from './file/file.module';
+import { SupabaseService } from './supabase/supabase.service';
+import { PDFModule } from './pdf/PDF.module';
 
 @Module({
   imports: [
@@ -31,15 +32,12 @@ import { FileModule } from './file/file.module';
     AudioModule,
     ProfileModule,
     AuthModule,
+    DictionaryModule,
     AudioDownloadModule,
     FileModule,
+    PDFModule,
   ],
-  controllers: [AppController, DictionaryController],
-  providers: [
-    AppService,
-    JwtAuthGuard,
-    DictionaryService,
-    AudioDownloadService,
-  ],
+  controllers: [AppController],
+  providers: [AppService, JwtAuthGuard, AudioDownloadService, SupabaseService],
 })
 export class AppModule {}

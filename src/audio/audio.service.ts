@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { Database } from 'src/word/database.types';
+import { Database } from 'src/types/supabase';
 import { GetAudioUrlDto } from './get-audio-url.dto';
 
 @Injectable()

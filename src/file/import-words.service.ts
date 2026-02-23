@@ -1,5 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import { Database } from '../word/database.types';
+import { Database } from 'src/types/supabase';
 
 export type ImportStatus = 'new' | 'exists' | 'exists_in_unit' | 'invalid';
 
@@ -18,22 +18,80 @@ export function normalizeWord(word: string) {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
+// export async function parseAndValidateWords(
+//   rows: any[],
+//   unitId: string,
+//   supabaseServer: SupabaseClient<Database>,
+// ): Promise<ImportWordResult[]> {
+//   const results: ImportWordResult[] = [];
+
+//   for (const row of rows) {
+//     if (!row.word) {
+//       results.push({ ...row, status: 'invalid' });
+//       continue;
+//     }
+
+//     const wordNormalized = normalizeWord(row.word);
+
+//     // Find word in DB
+//     const { data: wordInDb } = await supabaseServer
+//       .from('words')
+//       .select('id')
+//       .eq('word', wordNormalized)
+//       .maybeSingle();
+
+//     let status: ImportStatus = 'new';
+//     let existsInUnit = false;
+
+//     if (wordInDb) {
+//       // Check if word exists in unit
+//       const { data: inUnit } = await supabaseServer
+//         .from('words_units')
+//         .select('id')
+//         .eq('unit_id', unitId)
+//         .eq('word_id', wordInDb.id)
+//         .maybeSingle();
+
+//       if (inUnit) {
+//         status = 'exists_in_unit';
+//         existsInUnit = true;
+//       } else {
+//         status = 'exists';
+//       }
+//     }
+
+//     results.push({
+//       word: wordNormalized,
+//       meaning: row.meaning,
+//       ipa: row.ipa,
+//       status,
+//     });
+//   }
+
+//   return results;
+// }
+type RawRow = { word?: unknown; meaning?: unknown; ipa?: unknown };
+
 export async function parseAndValidateWords(
-  rows: any[],
+  rows: RawRow[],
   unitId: string,
   supabaseServer: SupabaseClient<Database>,
 ): Promise<ImportWordResult[]> {
   const results: ImportWordResult[] = [];
 
   for (const row of rows) {
-    if (!row.word) {
-      results.push({ ...row, status: 'invalid' });
+    const wordRaw = typeof row.word === 'string' ? row.word : undefined;
+    const meaningRaw =
+      typeof row.meaning === 'string' ? row.meaning : undefined;
+    const ipaRaw = typeof row.ipa === 'string' ? row.ipa : undefined;
+
+    if (!wordRaw) {
+      results.push({ word: '', status: 'invalid' });
       continue;
     }
 
-    const wordNormalized = normalizeWord(row.word);
+    const wordNormalized = normalizeWord(wordRaw);
 
-    // Find word in DB
     const { data: wordInDb } = await supabaseServer
       .from('words')
       .select('id')
@@ -41,10 +99,8 @@ export async function parseAndValidateWords(
       .maybeSingle();
 
     let status: ImportStatus = 'new';
-    let existsInUnit = false;
 
     if (wordInDb) {
-      // Check if word exists in unit
       const { data: inUnit } = await supabaseServer
         .from('words_units')
         .select('id')
@@ -52,18 +108,13 @@ export async function parseAndValidateWords(
         .eq('word_id', wordInDb.id)
         .maybeSingle();
 
-      if (inUnit) {
-        status = 'exists_in_unit';
-        existsInUnit = true;
-      } else {
-        status = 'exists';
-      }
+      status = inUnit ? 'exists_in_unit' : 'exists';
     }
 
     results.push({
       word: wordNormalized,
-      meaning: row.meaning,
-      ipa: row.ipa,
+      meaning: meaningRaw,
+      ipa: ipaRaw,
       status,
     });
   }

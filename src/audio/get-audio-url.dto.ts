@@ -1,4 +1,4 @@
 export class GetAudioUrlDto {
-  filePath: string;
-  expiresIn: number;
+  filePath!: string;
+  expiresIn!: number;
 }

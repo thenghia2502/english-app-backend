@@ -1,11 +1,48 @@
-import { Json } from 'src/word/database.types';
+import { Json } from 'src/types/supabase';
+import { Type } from 'class-transformer';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsArray,
+  ArrayNotEmpty,
+  IsObject,
+  IsNotEmpty,
+} from 'class-validator';
 
 export class CreateLessonDto {
-  curriculum_original_id: string;
-  name: string;
+  @IsString()
+  @IsNotEmpty()
+  curriculum_original_id!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  name!: string;
+  @IsOptional()
+  @IsString()
   description?: string;
-  level_id: number;
-  unit_ids: string[];
-  order: number;
-  words: Json[];
+
+  @IsOptional()
+  @IsNumber()
+  level_id?: number;
+
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsString({ each: true })
+  unit_ids!: string[];
+
+  @IsNumber()
+  @Type(() => Number)
+  order!: number;
+  @IsArray()
+  @IsObject({ each: true })
+  words!: Json[];
+
+  @IsNumber()
+  @IsOptional()
+  duration?: number;
+
+  @IsString()
+  @IsOptional()
+  category?: string;
 }

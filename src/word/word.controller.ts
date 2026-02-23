@@ -1,37 +1,64 @@
-import { Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Req,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
 import { WordService } from './word.service';
 import { JwtAuthGuard } from 'src/jwt-auth.guard';
-
+import express from 'express';
 @Controller('words')
 export class WordController {
   constructor(private readonly wordService: WordService) {}
 
   @Get()
-  getAllWords() {
-    return this.wordService.getAllWords();
+  getAllWords(@Req() req: express.Request) {
+    if (!req.user?.accessToken) {
+      throw new UnauthorizedException();
+    }
+    return this.wordService.getAllWords(req.user.accessToken);
   }
 
   @Get('search')
-  searchWords(@Query('q') keyword: string) {
-    return this.wordService.searchWords(keyword);
+  searchWords(@Query('q') keyword: string, @Req() req: express.Request) {
+    if (!req.user?.accessToken) {
+      throw new UnauthorizedException();
+    }
+    return this.wordService.searchWords(keyword, req.user.accessToken);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('by-units')
-  getWordsByUnits(@Query('unitIds') unitIds: string[]) {
+  getWordsByUnits(
+    @Query('unitIds') unitIds: string[],
+    @Req() req: express.Request,
+  ) {
+    if (!req.user?.accessToken) {
+      throw new UnauthorizedException();
+    }
     const ids = Array.isArray(unitIds) ? unitIds : [unitIds];
-    return this.wordService.getWordsByUnits(ids);
+    return this.wordService.getWordsByUnits(ids, req.user.accessToken);
   }
 
   @Get('child-of/:wordId')
-  getChildWords(@Param('wordId') wordId: string) {
-    return this.wordService.getChildWords(wordId);
+  getChildWords(@Param('wordId') wordId: string, @Req() req: express.Request) {
+    if (!req.user?.accessToken) {
+      throw new UnauthorizedException();
+    }
+    return this.wordService.getChildWords(wordId, req.user.accessToken);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  getWordById(@Param('id') id: string) {
-    return this.wordService.getWordById(String(id));
+  getWordById(@Param('id') id: string, @Req() req: express.Request) {
+    if (!req.user?.accessToken) {
+      throw new UnauthorizedException();
+    }
+    return this.wordService.getWordById(String(id), req.user.accessToken);
   }
 
   @Post('add')
@@ -43,7 +70,11 @@ export class WordController {
       ipa_us: string;
       meaning: string;
     },
+    @Req() req: express.Request,
   ) {
-    return this.wordService.addWord(word);
+    if (!req.user?.accessToken) {
+      throw new UnauthorizedException();
+    }
+    return this.wordService.addWord(word, req.user.accessToken);
   }
 }

@@ -126,14 +126,50 @@ function tsvToJson(content: string): ImportedRow[] {
 }
 
 function txtToJson(content: string): ImportedRow[] {
-  // format: word|meaning|ipa
-  return content
-    .split('\n')
-    .filter(Boolean)
+  // Hỗ trợ nhiều format:
+  // 1. word|meaning|ipa (pipe separated)
+  // 2. word,word,word (comma separated words in one line)
+  // 3. word,meaning (comma separated on multiple lines - CSV format)
+  // 4. word (one word per line)
+
+  const lines = content.split('\n').filter((line) => line.trim());
+
+  // Nếu chỉ có 1 dòng và có dấu phẩy → split thành nhiều từ
+  if (lines.length === 1 && lines[0].includes(',')) {
+    return lines[0]
+      .split(',')
+      .map((word) => word.trim())
+      .filter(Boolean)
+      .map((word) => ({ text: word }));
+  }
+
+  return lines
     .map((line) => {
-      const [word, meaning, ipa] = line.split('|');
-      return { word, meaning, ipa };
-    });
+      const trimmedLine = line.trim();
+      if (!trimmedLine) return null;
+
+      // Format: word|meaning|ipa
+      if (trimmedLine.includes('|')) {
+        const [text, meaning, ipa] = trimmedLine
+          .split('|')
+          .map((s) => s.trim());
+        return { text, meaning, ipa };
+      }
+
+      // Format: word,meaning,ipa (CSV without header - nhiều dòng)
+      if (trimmedLine.includes(',')) {
+        const parts = trimmedLine.split(',').map((s) => s.trim());
+        return {
+          text: parts[0] || undefined,
+          meaning: parts[1] || undefined,
+          ipa: parts[2] || undefined,
+        };
+      }
+
+      // Format: just word (one per line)
+      return { text: trimmedLine };
+    })
+    .filter((row) => row !== null) as ImportedRow[];
 }
 
 function parseExcelFile(filePath: string): ImportedRow[] {
@@ -141,7 +177,7 @@ function parseExcelFile(filePath: string): ImportedRow[] {
     const workbook = XLSX.readFile(filePath);
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
-    return XLSX.utils.sheet_to_json<ImportedRow>(sheet);
+    return normalizeExcelData(sheet);
   } catch (error) {
     throw new Error(
       `Failed to parse Excel file: ${error instanceof Error ? error.message : String(error)}`,
@@ -157,7 +193,7 @@ function parseExcelBuffer(content: string): ImportedRow[] {
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
-    return XLSX.utils.sheet_to_json<ImportedRow>(sheet);
+    return normalizeExcelData(sheet);
   } catch (error) {
     throw new Error(
       `Failed to parse Excel file: ${error instanceof Error ? error.message : String(error)}`,
@@ -170,12 +206,76 @@ export function parseFileBuffer(buffer: Buffer): ImportedRow[] {
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
-    return XLSX.utils.sheet_to_json<ImportedRow>(sheet);
+    return normalizeExcelData(sheet);
   } catch (error) {
     throw new Error(
       `Failed to parse Excel file: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
+}
+
+function normalizeExcelData(sheet: XLSX.WorkSheet): ImportedRow[] {
+  // Parse với header để lấy data dạng object
+  const jsonData = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, {
+    defval: '',
+  });
+
+  if (jsonData.length === 0) return [];
+
+  const firstRow = jsonData[0];
+  const keys = Object.keys(firstRow);
+
+  // Kiểm tra nếu có header hợp lệ (text/word, meaning, ipa)
+  const hasValidHeader = keys.some((key) =>
+    ['text', 'word', 'meaning', 'ipa', 'ipa_uk', 'ipa_us'].includes(
+      key.toLowerCase(),
+    ),
+  );
+
+  if (hasValidHeader) {
+    // Excel có header chuẩn - giữ nguyên
+    return jsonData
+      .map((row) => {
+        const normalized: ImportedRow = {};
+        Object.keys(row).forEach((key) => {
+          const lowerKey = key.toLowerCase();
+          if (lowerKey === 'text' || lowerKey === 'word') {
+            normalized.text = String(row[key]).trim();
+          } else if (lowerKey === 'meaning') {
+            normalized.meaning = String(row[key]).trim();
+          } else if (lowerKey === 'ipa' || lowerKey === 'ipa_uk') {
+            normalized.ipa_uk = String(row[key]).trim();
+          } else if (lowerKey === 'ipa_us') {
+            normalized.ipa_us = String(row[key]).trim();
+          } else {
+            normalized[key] = row[key];
+          }
+        });
+        return normalized;
+      })
+      .filter((row) => row.text);
+  }
+
+  // Excel không có header hoặc header không hợp lệ
+  // Map columns: cột 1 = text, cột 2 = meaning, cột 3 = ipa
+  return jsonData
+    .map((row) => {
+      const values = Object.values(row).filter(
+        (v) => v !== null && v !== undefined && v !== '',
+      );
+      if (values.length === 0) return null;
+
+      const result: ImportedRow = {
+        text: String(values[0]).trim(),
+      };
+
+      if (values[1]) result.meaning = String(values[1]).trim();
+      if (values[2]) result.ipa_uk = String(values[2]).trim();
+      if (values[3]) result.ipa_us = String(values[3]).trim();
+
+      return result;
+    })
+    .filter((row): row is ImportedRow => row !== null && !!row.text);
 }
 
 function normalizeJsonContent(content: string): ImportedRow[] {

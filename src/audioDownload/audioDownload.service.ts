@@ -3,7 +3,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { Database } from '../word/database.types';
+import { Database } from 'src/types/supabase';
 import audioLinks from './audio-links.json';
 import * as cheerio from 'cheerio';
 
@@ -14,7 +14,7 @@ export class AudioDownloadService {
   constructor(
     @Inject('SUPABASE_SERVER')
     private readonly supabase: SupabaseClient<Database>,
-  ) { }
+  ) {}
 
   /** Lấy link audio từ file JSON */
   async getAudioUrls(word: string) {
@@ -37,9 +37,15 @@ export class AudioDownloadService {
     // 2️⃣ Nếu JSON thiếu link → scrape Cambridge
     if (!urls.ukUrl || !urls.usUrl) {
       try {
-        const res = await axios.get(
-          `https://dictionary.cambridge.org/dictionary/english/${word}`,
-          { headers: { 'User-Agent': 'Mozilla/5.0' } },
+        // const res = await axios.get(
+        //   `https://dictionary.cambridge.org/dictionary/english/${word}`,
+        //   { headers: { 'User-Agent': 'Mozilla/5.0' } },
+        // );
+        // const $ = cheerio.load(res.data);
+
+        const res = await axios.get<string>(
+          `https://dictionary.cambridge.org/dictionary/english/${encodeURIComponent(word)}`,
+          { headers: { 'User-Agent': 'Mozilla/5.0' }, responseType: 'text' },
         );
         const $ = cheerio.load(res.data);
 
@@ -59,10 +65,7 @@ export class AudioDownloadService {
             : null;
         }
       } catch (error) {
-        console.error(
-          `Failed to fetch audio URLs from Cambridge for "${word}":`,
-          error,
-        );
+        this.logger.error(String(error));
       }
     }
 
@@ -71,7 +74,12 @@ export class AudioDownloadService {
 
   /** Download file MP3 từ URL */
   async downloadAudio(url: string): Promise<Buffer> {
-    const res = await axios.get(url, { responseType: 'arraybuffer' });
+    // const res = await axios.get(url, { responseType: 'arraybuffer' });
+    // return Buffer.from(res.data);
+
+    const res = await axios.get<ArrayBuffer>(url, {
+      responseType: 'arraybuffer',
+    });
     return Buffer.from(res.data);
   }
 
@@ -97,6 +105,8 @@ export class AudioDownloadService {
 
   /** MAIN FUNCTION */
   async process(word: string) {
+    this.logger.log(`Starting audio process for word: "${word}"`);
+
     const result: {
       success: boolean;
       word: string;
@@ -137,11 +147,14 @@ export class AudioDownloadService {
 
       // Xử lý UK
       if (urls.ukUrl) {
+        this.logger.log(`Downloading UK audio from: ${urls.ukUrl}`);
         const ukBuffer = await this.downloadAudio(urls.ukUrl);
+        this.logger.log(`Uploading UK audio to storage: audio/uk/${word}.mp3`);
         const ukStorageUrl = await this.uploadToSupabase(
           `audio/uk/${word}.mp3`,
           ukBuffer,
         );
+        this.logger.log(`UK audio uploaded successfully: ${ukStorageUrl}`);
         result.sources.ukUrl = urls.ukUrl;
         result.storageUrls.ukStorageUrl = ukStorageUrl;
       }
@@ -170,20 +183,22 @@ export class AudioDownloadService {
           storageUrls: { ukStorageUrl: '', usStorageUrl: '' },
         };
       }
-
-      // Xử lý US
-      if (urls.usUrl) {
-        const usBuffer = await this.downloadAudio(urls.usUrl);
-        const usStorageUrl = await this.uploadToSupabase(
-          `audio/us/${word}.mp3`,
-          usBuffer,
-        );
-        result.sources.usUrl = urls.usUrl;
-        result.storageUrls.usStorageUrl = usStorageUrl;
-      }
-
-      // return result;
+      this.logger.log(`Downloading US audio from: ${urls.usUrl}`);
+      const usBuffer = await this.downloadAudio(urls.usUrl);
+      this.logger.log(`Uploading US audio to storage: audio/us/${word}.mp3`);
+      const usStorageUrl = await this.uploadToSupabase(
+        `audio/us/${word}.mp3`,
+        usBuffer,
+      );
+      this.logger.log(`US audio uploaded successfully: ${usStorageUrl}`);
+      result.sources.usUrl = urls.usUrl;
+      result.storageUrls.usStorageUrl = usStorageUrl;
     }
+
+    // return result;
+
+    this.logger.log(`Audio process completed for "${word}":`, result);
+
     result.sources.usUrl = usSigned?.signedUrl || '';
     result.storageUrls.usStorageUrl = usSigned?.signedUrl || '';
     return result;

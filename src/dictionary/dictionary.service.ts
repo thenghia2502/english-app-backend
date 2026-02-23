@@ -3,7 +3,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { AudioDownloadService } from 'src/audioDownload/audioDownload.service';
-import { Database } from 'src/word/database.types';
+import { Database } from 'src/types/supabase';
 
 @Injectable()
 export class DictionaryService {
@@ -13,6 +13,9 @@ export class DictionaryService {
     @Inject('SUPABASE_CLIENT')
     private readonly supabase: SupabaseClient<Database>,
     private readonly audioDownloadService: AudioDownloadService,
+
+    @Inject('SUPABASE_SERVER')
+    private readonly supabaseServer: SupabaseClient<Database>,
   ) {}
   private cache: Record<
     string,
@@ -29,6 +32,8 @@ export class DictionaryService {
     ukIPA: string | null;
     usIPA: string | null;
     meaning: string | null;
+    ukSingleUrl?: string;
+    usSingleUrl?: string;
   }> {
     const key = word.toLowerCase();
 
@@ -61,7 +66,7 @@ export class DictionaryService {
       const url = `https://dictionary.cambridge.org/dictionary/english/${encodeURIComponent(
         word,
       )}`;
-      const res = await axios.get(url, {
+      const res = await axios.get<string>(url, {
         headers: { 'User-Agent': 'Mozilla/5.0' },
       });
 
@@ -71,7 +76,7 @@ export class DictionaryService {
       const usIPA = $('.us .pron .ipa').first().text() || null;
 
       const url2 = `https://vdict.com/${encodeURIComponent(word)},1,0,0.html`;
-      const res2 = await axios.get(url2, {
+      const res2 = await axios.get<string>(url2, {
         headers: { 'User-Agent': 'Mozilla/5.0' },
       });
       const $2 = cheerio.load(res2.data);
@@ -87,18 +92,27 @@ export class DictionaryService {
       });
 
       // 4️⃣ Lưu vào DB + trả lại id
-      const { data: insertedWord, error: insertError } = await this.supabase
-        .from('words')
-        .insert({
-          word,
-          uk_ipa: ukIPA,
-          us_ipa: usIPA,
-          meaning: meaning,
-        })
-        .select('id, word, uk_ipa, us_ipa, meaning')
-        .single();
+      this.logger.log(`Attempting to insert word "${word}" into database...`);
+      const { data: insertedWord, error: insertError } =
+        await this.supabaseServer
+          .from('words')
+          .insert({
+            word,
+            uk_ipa: ukIPA,
+            us_ipa: usIPA,
+            meaning: meaning,
+          })
+          .select('id, word, uk_ipa, us_ipa, meaning')
+          .single();
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        this.logger.error(`Failed to insert word "${word}":`, insertError);
+        throw insertError;
+      }
+
+      this.logger.log(
+        `Successfully inserted word "${word}" with id: ${insertedWord.id}`,
+      );
 
       const result = {
         id: insertedWord.id,
@@ -110,15 +124,22 @@ export class DictionaryService {
       };
 
       // Tải audio UK/US và upload lên Supabase storage
-      await this.audioDownloadService.process(key);
+      this.logger.log(`Downloading and uploading audio for word "${word}"...`);
+      const audioResult = await this.audioDownloadService.process(key);
+      this.logger.log(`Audio process result:`, audioResult);
+
+      // Update result with audio URLs
+      result.ukSingleUrl = audioResult?.storageUrls?.ukStorageUrl || '';
+      result.usSingleUrl = audioResult?.storageUrls?.usStorageUrl || '';
 
       // 5️⃣ Lưu cache
       this.cache[key] = result;
 
       return result;
     } catch (err: any) {
-      this.logger.error(`Failed to fetch IPA for "${word}": ${err.message}`);
-      return { id: '', ukIPA: null, usIPA: null, meaning: null };
+      this.logger.error(`Failed to fetch IPA for "${word}":`, err);
+      // DO NOT swallow the error silently - rethrow it so the caller knows something went wrong
+      throw err;
     }
   }
 }

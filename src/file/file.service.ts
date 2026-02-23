@@ -1,6 +1,6 @@
 import { Injectable, Inject, BadRequestException } from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { Database } from '../word/database.types';
+import { Database } from 'src/types/supabase';
 import {
   parseFileContent,
   parseFileBuffer,
@@ -8,6 +8,7 @@ import {
   ImportedRow,
 } from './file-reader.util';
 import { WordService } from 'src/word/word.service';
+import { DictionaryService } from 'src/dictionary/dictionary.service';
 
 @Injectable()
 export class FileService {
@@ -15,6 +16,7 @@ export class FileService {
     @Inject('SUPABASE_SERVER')
     private readonly supabaseServer: SupabaseClient<Database>,
     private readonly wordService: WordService,
+    private readonly dictionaryService: DictionaryService,
   ) {}
 
   async parseUploadedFile(file: Express.Multer.File): Promise<ImportedRow[]> {
@@ -40,23 +42,29 @@ export class FileService {
     return parseFileContent(content, filename);
   }
 
-  async attachWordIds(rows: ImportedRow[]): Promise<void> {
+  async attachWordIds(rows: ImportedRow[], token: string): Promise<void> {
     for (const row of rows) {
       const wordText = this.getWordValue(row);
       if (!wordText) continue;
 
-      const existingWord = await this.wordService.getWordByName(wordText);
+      const existingWord = await this.wordService.getWordByName(
+        wordText,
+        token,
+      );
       if (existingWord) {
         row.id = existingWord.id;
         continue;
       }
 
-      const newWord = await this.wordService.addWord({
-        word: wordText,
-        ipa_uk: this.getString(row.ipa_uk),
-        ipa_us: this.getString(row.ipa_us),
-        meaning: this.getString(row.meaning),
-      });
+      const newWord = await this.wordService.addWord(
+        {
+          word: wordText,
+          ipa_uk: this.getString(row.ipa_uk),
+          ipa_us: this.getString(row.ipa_us),
+          meaning: this.getString(row.meaning),
+        },
+        token,
+      );
       row.id = newWord.id;
     }
   }
@@ -143,15 +151,27 @@ export class FileService {
   async readFile(file: Express.Multer.File) {
     const rows = await this.parseUploadedFile(file);
     const uniqueValidRows = this.deduplicateRows(rows);
-    await this.attachWordIds(uniqueValidRows);
-    const rowsValidation = this.validateImportData(uniqueValidRows);
+    const returnedRows: {
+      id: string;
+      text: string;
+      ukIPA: string | null;
+      usIPA: string | null;
+      meaning: string | null;
+      ukSingleUrl?: string;
+      usSingleUrl?: string;
+    }[] = [];
+    for (const row of uniqueValidRows) {
+      const temp = await this.dictionaryService.getIPA(
+        row.text || row.word || '',
+      );
+      returnedRows.push({ ...temp, text: row.text || row.word || '' });
+    }
+    // await this.attachWordIds(uniqueValidRows);
+    // const rowsValidation = this.validateImportData(uniqueValidRows);
 
     return {
       success: true,
-      rows: rowsValidation,
-      b1: rows,
-      b2: uniqueValidRows,
-      b3: rowsValidation,
+      rows: returnedRows,
     };
   }
 }

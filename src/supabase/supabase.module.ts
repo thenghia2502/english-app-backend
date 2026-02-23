@@ -1,8 +1,9 @@
 import { Module, Global } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Database } from '../word/database.types';
+import { Database } from 'src/types/supabase';
 import * as dotenv from 'dotenv';
+import { SupabaseService } from './supabase.service';
 dotenv.config();
 
 @Global()
@@ -42,7 +43,8 @@ dotenv.config();
       },
       inject: [ConfigService],
     },
+    SupabaseService,
   ],
-  exports: ['SUPABASE_CLIENT', 'SUPABASE_SERVER'],
+  exports: ['SUPABASE_CLIENT', 'SUPABASE_SERVER', SupabaseService],
 })
 export class SupabaseModule {}

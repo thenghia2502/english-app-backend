@@ -1,18 +1,18 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { Database } from 'src/types/supabase';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { Database } from 'src/types/supabase';
 
 @Injectable()
-export class AppService {
+export class PDFService {
   constructor(
-    @Inject('SUPABASE_CLIENT')
+    @Inject('SUPABASE_SERVER')
     private readonly supabase: SupabaseClient<Database>,
   ) {}
 
-  async getHello() {
+  async generatePDF(filePath: string, expiresIn: number) {
     const { data, error } = await this.supabase.storage
-      .from('store')
-      .createSignedUrl('audio/familial_img2_uk.mp3', 60);
+      .from('pdfs')
+      .createSignedUrl(filePath, expiresIn);
 
     if (error) {
       console.error(error);

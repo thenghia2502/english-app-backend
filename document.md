@@ -209,4 +209,5 @@ Ghi chú bảo mật:
 ---
 Phiên bản tài liệu: 1.0  
 Cập nhật cuối: 28/11/2025
+lệnh lấy type supabase: npx supabase gen types typescript --project-id macpwgocrmlkwjjhhgzc --schema public > src/types/supabase.ts
 

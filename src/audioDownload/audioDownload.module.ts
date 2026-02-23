@@ -9,5 +9,6 @@ import { SupabaseModule } from '../supabase/supabase.module';
   imports: [SupabaseModule],
   providers: [AudioDownloadService],
   controllers: [AudioDownloadController],
+  exports: [AudioDownloadService],
 })
 export class AudioDownloadModule {}
