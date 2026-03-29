@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { SupabaseClient } from '@supabase/supabase-js';
-import { Database } from 'src/types/supabase';
+import { SupabaseService } from 'src/supabase/supabase.service';
 
 export type UnitNoteRow = {
   id: string;
@@ -11,15 +10,23 @@ export type UnitNoteRow = {
 
 @Injectable()
 export class UnitNotesService {
-  constructor(private readonly supabase: SupabaseClient<Database>) {}
+  constructor(private readonly supabase: SupabaseService) {}
 
-  async getByUnit(userId: string, unitId: string): Promise<UnitNoteRow | null> {
-    const { data, error } = await this.supabase
+  async getByUnit(
+    userId: string,
+    unitId: string,
+    token: string,
+  ): Promise<UnitNoteRow | null> {
+    const supabase = this.supabase.createClientWithAuth(token);
+
+    const dbquery = supabase
       .from('unit_notes')
       .select('id, content, created_at, updated_at')
       .eq('unit_id', unitId)
       .eq('user_id', userId)
       .maybeSingle();
+
+    const { data, error } = await dbquery;
 
     if (error) throw error;
     return data as UnitNoteRow | null;
@@ -29,8 +36,11 @@ export class UnitNotesService {
     userId: string,
     unitId: string,
     content: string,
+    token: string,
   ): Promise<UnitNoteRow> {
-    const { data, error } = await this.supabase
+    const supabase = this.supabase.createClientWithAuth(token);
+
+    const { data, error } = await supabase
       .from('unit_notes')
       .upsert(
         {
@@ -49,8 +59,13 @@ export class UnitNotesService {
     return data as UnitNoteRow;
   }
 
-  async delete(userId: string, unitId: string): Promise<boolean> {
-    const { error } = await this.supabase
+  async delete(
+    userId: string,
+    unitId: string,
+    token: string,
+  ): Promise<boolean> {
+    const supabase = this.supabase.createClientWithAuth(token);
+    const { error } = await supabase
       .from('unit_notes')
       .delete()
       .eq('user_id', userId)

@@ -56,4 +56,15 @@ export class CurriculumService {
     if (error) throw new Error(error.message);
     return data;
   }
+
+  async getWorkBooksByCurriculumId(curriculumId: string, token: string) {
+    const supabase = this.supabaseService.createClientWithAuth(token);
+
+    const { data, error } = await supabase
+      .from('curriculum_original')
+      .select('id')
+      .eq('student_book_id', curriculumId);
+    if (error) throw new Error(error.message);
+    return data;
+  }
 }

@@ -5,5 +5,6 @@ import { UnitNotesController } from './unit-notes.controller';
 @Module({
   controllers: [UnitNotesController],
   providers: [UnitNotesService],
+  imports: [],
 })
 export class UnitNotesModule {}

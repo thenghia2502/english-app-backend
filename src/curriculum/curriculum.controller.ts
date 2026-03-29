@@ -17,11 +17,17 @@ export class CurriculumController {
 
   @UseGuards(JwtAuthGuard)
   @Get()
-  getAllCurriculums(@Req() req: express.Request, @Query() query: { search?: string, page?: number; limit?: number }) {
+  getAllCurriculums(
+    @Req() req: express.Request,
+    @Query() query: { search?: string; page?: number; limit?: number },
+  ) {
     if (!req.user?.accessToken) {
       throw new UnauthorizedException();
     }
-    return this.curriculumService.getAllCurriculums(req.user.accessToken, query);
+    return this.curriculumService.getAllCurriculums(
+      req.user.accessToken,
+      query,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
@@ -34,6 +40,21 @@ export class CurriculumController {
       throw new UnauthorizedException();
     }
     return this.curriculumService.getCurriculumById(
+      curriculumId,
+      req.user.accessToken,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('/:id/workbooks')
+  getWorkBooksByCurriculumId(
+    @Param('id') curriculumId: string,
+    @Req() req: express.Request,
+  ) {
+    if (!req.user?.accessToken) {
+      throw new UnauthorizedException();
+    }
+    return this.curriculumService.getWorkBooksByCurriculumId(
       curriculumId,
       req.user.accessToken,
     );

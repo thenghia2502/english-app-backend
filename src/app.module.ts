@@ -17,6 +17,7 @@ import { AudioDownloadService } from './audioDownload/audioDownload.service';
 import { FileModule } from './file/file.module';
 import { SupabaseService } from './supabase/supabase.service';
 import { PDFModule } from './pdf/PDF.module';
+import { UnitNotesModule } from './note/unit-notes.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { PDFModule } from './pdf/PDF.module';
     AudioDownloadModule,
     FileModule,
     PDFModule,
+    UnitNotesModule,
   ],
   controllers: [AppController],
   providers: [AppService, JwtAuthGuard, AudioDownloadService, SupabaseService],
