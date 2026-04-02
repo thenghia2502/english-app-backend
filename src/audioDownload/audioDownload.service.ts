@@ -6,6 +6,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { Database } from 'src/types/supabase';
 import audioLinks from './audio-links.json';
 import * as cheerio from 'cheerio';
+import { AudioDownloadRepository } from './audio-download.repository.js';
 
 @Injectable()
 export class AudioDownloadService {
@@ -19,14 +20,13 @@ export class AudioDownloadService {
   /** Lấy link audio từ file JSON */
   async getAudioUrls(word: string) {
     const key = word.toLowerCase().trim();
-    const map = audioLinks as Record<string, string[]>; // giả sử JSON mỗi từ là array of link
+    const map = audioLinks as Record<string, string[]>;
 
     const urls: { ukUrl: string | null; usUrl: string | null } = {
       ukUrl: null,
       usUrl: null,
     };
 
-    // 1️⃣ Lấy từ JSON nếu có
     if (map[key]?.length > 0) {
       map[key].forEach((url) => {
         if (url.includes('/uk/')) urls.ukUrl = url;
@@ -34,15 +34,8 @@ export class AudioDownloadService {
       });
     }
 
-    // 2️⃣ Nếu JSON thiếu link → scrape Cambridge
     if (!urls.ukUrl || !urls.usUrl) {
       try {
-        // const res = await axios.get(
-        //   `https://dictionary.cambridge.org/dictionary/english/${word}`,
-        //   { headers: { 'User-Agent': 'Mozilla/5.0' } },
-        // );
-        // const $ = cheerio.load(res.data);
-
         const res = await axios.get<string>(
           `https://dictionary.cambridge.org/dictionary/english/${encodeURIComponent(word)}`,
           { headers: { 'User-Agent': 'Mozilla/5.0' }, responseType: 'text' },
@@ -74,38 +67,16 @@ export class AudioDownloadService {
 
   /** Download file MP3 từ URL */
   async downloadAudio(url: string): Promise<Buffer> {
-    // const res = await axios.get(url, { responseType: 'arraybuffer' });
-    // return Buffer.from(res.data);
-
     const res = await axios.get<ArrayBuffer>(url, {
       responseType: 'arraybuffer',
     });
     return Buffer.from(res.data);
   }
 
-  /** Upload lên Supabase Storage */
-  async uploadToSupabase(path: string, buffer: Buffer): Promise<string> {
-    const { error } = await this.supabase.storage
-      .from('store')
-      .upload(path, buffer, {
-        contentType: 'audio/mpeg',
-        upsert: true,
-      });
-
-    if (error) {
-      this.logger.error(error);
-      throw error;
-    }
-
-    const { data } = await this.supabase.storage
-      .from('store')
-      .createSignedUrl(path, 60);
-    return data?.signedUrl || '';
-  }
-
   /** MAIN FUNCTION */
   async process(word: string) {
     this.logger.log(`Starting audio process for word: "${word}"`);
+    const repo = new AudioDownloadRepository(this.supabase);
 
     const result: {
       success: boolean;
@@ -125,14 +96,10 @@ export class AudioDownloadService {
       },
     };
 
-    const { data: ukSigned, error: ukErr } = await this.supabase.storage
-      .from('store')
-      .createSignedUrl(`audio/uk/${word}.mp3`, 60);
+    const ukSigned = await repo.getSignedUrl(`audio/uk/${word}.mp3`, 60);
+    const ukErr = !ukSigned;
 
-    if (ukErr) {
-      // console.error(error);
-      // throw new Error('Failed to create signed URL');
-      // Lấy object { ukUrl, usUrl }
+    if (!ukSigned) {
       const urls = await this.getAudioUrls(word);
 
       if (!urls.ukUrl) {
@@ -145,12 +112,11 @@ export class AudioDownloadService {
         };
       }
 
-      // Xử lý UK
       if (urls.ukUrl) {
         this.logger.log(`Downloading UK audio from: ${urls.ukUrl}`);
         const ukBuffer = await this.downloadAudio(urls.ukUrl);
         this.logger.log(`Uploading UK audio to storage: audio/uk/${word}.mp3`);
-        const ukStorageUrl = await this.uploadToSupabase(
+        const ukStorageUrl = await repo.uploadToSupabase(
           `audio/uk/${word}.mp3`,
           ukBuffer,
         );
@@ -158,20 +124,14 @@ export class AudioDownloadService {
         result.sources.ukUrl = urls.ukUrl;
         result.storageUrls.ukStorageUrl = ukStorageUrl;
       }
-
-      // return result;
     }
-    result.sources.ukUrl = ukSigned?.signedUrl || '';
-    result.storageUrls.ukStorageUrl = ukSigned?.signedUrl || '';
+    result.sources.ukUrl = ukSigned || '';
+    result.storageUrls.ukStorageUrl = ukSigned || '';
 
-    const { data: usSigned, error: usErr } = await this.supabase.storage
-      .from('store')
-      .createSignedUrl(`audio/us/${word}.mp3`, 60);
+    const usSigned = await repo.getSignedUrl(`audio/us/${word}.mp3`, 60);
+    const usErr = !usSigned;
 
-    if (usErr) {
-      // console.error(error);
-      // throw new Error('Failed to create signed URL');
-      // Lấy object { ukUrl, usUrl }
+    if (!usSigned) {
       const urls = await this.getAudioUrls(word);
 
       if (!urls.usUrl) {
@@ -186,7 +146,7 @@ export class AudioDownloadService {
       this.logger.log(`Downloading US audio from: ${urls.usUrl}`);
       const usBuffer = await this.downloadAudio(urls.usUrl);
       this.logger.log(`Uploading US audio to storage: audio/us/${word}.mp3`);
-      const usStorageUrl = await this.uploadToSupabase(
+      const usStorageUrl = await repo.uploadToSupabase(
         `audio/us/${word}.mp3`,
         usBuffer,
       );
@@ -195,12 +155,10 @@ export class AudioDownloadService {
       result.storageUrls.usStorageUrl = usStorageUrl;
     }
 
-    // return result;
-
     this.logger.log(`Audio process completed for "${word}":`, result);
 
-    result.sources.usUrl = usSigned?.signedUrl || '';
-    result.storageUrls.usStorageUrl = usSigned?.signedUrl || '';
+    result.sources.usUrl = usSigned || '';
+    result.storageUrls.usStorageUrl = usSigned || '';
     return result;
   }
 }

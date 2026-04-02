@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Database } from 'src/types/supabase';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { AppRepository } from './app.repository.js';
 
 @Injectable()
 export class AppService {
@@ -10,17 +11,8 @@ export class AppService {
   ) {}
 
   async getHello() {
-    const { data, error } = await this.supabase.storage
-      .from('store')
-      .createSignedUrl('audio/familial_img2_uk.mp3', 60);
-
-    if (error) {
-      console.error(error);
-      throw new Error('Failed to create signed URL');
-    }
-
-    return {
-      url: data.signedUrl,
-    };
+    const repo = new AppRepository(this.supabase);
+    const url = await repo.getSignedUrl('audio/familial_img2_uk.mp3', 60);
+    return { url };
   }
 }

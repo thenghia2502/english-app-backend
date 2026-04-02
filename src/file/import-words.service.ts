@@ -70,6 +70,8 @@ export function normalizeWord(word: string) {
 
 //   return results;
 // }
+import { ImportWordsRepository } from './import-words.repository.js';
+
 type RawRow = { word?: unknown; meaning?: unknown; ipa?: unknown };
 
 export async function parseAndValidateWords(
@@ -78,6 +80,7 @@ export async function parseAndValidateWords(
   supabaseServer: SupabaseClient<Database>,
 ): Promise<ImportWordResult[]> {
   const results: ImportWordResult[] = [];
+  const repo = new ImportWordsRepository(supabaseServer);
 
   for (const row of rows) {
     const wordRaw = typeof row.word === 'string' ? row.word : undefined;
@@ -92,23 +95,14 @@ export async function parseAndValidateWords(
 
     const wordNormalized = normalizeWord(wordRaw);
 
-    const { data: wordInDb } = await supabaseServer
-      .from('words')
-      .select('id')
-      .eq('word', wordNormalized)
-      .maybeSingle();
+    const wordId = await repo.getWordId(wordNormalized);
+    const wordInDb = wordId ? { id: wordId } : null;
 
     let status: ImportStatus = 'new';
 
     if (wordInDb) {
-      const { data: inUnit } = await supabaseServer
-        .from('words_units')
-        .select('id')
-        .eq('unit_id', unitId)
-        .eq('word_id', wordInDb.id)
-        .maybeSingle();
-
-      status = inUnit ? 'exists_in_unit' : 'exists';
+      const existsInUnit = await repo.checkWordExistsInUnit(unitId, wordInDb.id);
+      status = existsInUnit ? 'exists_in_unit' : 'exists';
     }
 
     results.push({

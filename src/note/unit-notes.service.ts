@@ -1,77 +1,67 @@
 import { Injectable } from '@nestjs/common';
 import { SupabaseService } from 'src/supabase/supabase.service';
+import * as unitNotesRepository from './unit-notes.repository.js';
+import type { UnitNoteRow } from './unit-notes.repository.js';
+export type { UnitNoteRow } from './unit-notes.repository.js';
 
-export type UnitNoteRow = {
-  id: string;
-  content: string;
-  created_at: string | null;
-  updated_at: string | null;
+type UnitNotesRepositoryAdapter = {
+  getUnitNoteByUnit: (
+    supabase: SupabaseService,
+    userId: string,
+    unitId: string,
+    token: string,
+  ) => Promise<UnitNoteRow | null>;
+  upsertUnitNote: (
+    supabase: SupabaseService,
+    userId: string,
+    unitId: string,
+    content: string,
+    token: string,
+  ) => Promise<UnitNoteRow>;
+  deleteUnitNote: (
+    supabase: SupabaseService,
+    userId: string,
+    unitId: string,
+    token: string,
+  ) => Promise<boolean>;
 };
+
+const unitNotesRepo =
+  unitNotesRepository as unknown as UnitNotesRepositoryAdapter;
 
 @Injectable()
 export class UnitNotesService {
   constructor(private readonly supabase: SupabaseService) {}
 
-  async getByUnit(
+  getByUnit(
     userId: string,
     unitId: string,
     token: string,
   ): Promise<UnitNoteRow | null> {
-    const supabase = this.supabase.createClientWithAuth(token);
-
-    const dbquery = supabase
-      .from('unit_notes')
-      .select('id, content, created_at, updated_at')
-      .eq('unit_id', unitId)
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    const { data, error } = await dbquery;
-
-    if (error) throw error;
-    return data as UnitNoteRow | null;
+    return unitNotesRepo.getUnitNoteByUnit(
+      this.supabase,
+      userId,
+      unitId,
+      token,
+    );
   }
 
-  async upsert(
+  upsert(
     userId: string,
     unitId: string,
     content: string,
     token: string,
   ): Promise<UnitNoteRow> {
-    const supabase = this.supabase.createClientWithAuth(token);
-
-    const { data, error } = await supabase
-      .from('unit_notes')
-      .upsert(
-        {
-          user_id: userId,
-          unit_id: unitId,
-          content,
-        },
-        {
-          onConflict: 'user_id,unit_id',
-        },
-      )
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data as UnitNoteRow;
+    return unitNotesRepo.upsertUnitNote(
+      this.supabase,
+      userId,
+      unitId,
+      content,
+      token,
+    );
   }
 
-  async delete(
-    userId: string,
-    unitId: string,
-    token: string,
-  ): Promise<boolean> {
-    const supabase = this.supabase.createClientWithAuth(token);
-    const { error } = await supabase
-      .from('unit_notes')
-      .delete()
-      .eq('user_id', userId)
-      .eq('unit_id', unitId);
-
-    if (error) throw error;
-    return true;
+  delete(userId: string, unitId: string, token: string) {
+    return unitNotesRepo.deleteUnitNote(this.supabase, userId, unitId, token);
   }
 }

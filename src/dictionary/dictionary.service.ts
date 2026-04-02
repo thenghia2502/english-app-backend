@@ -4,6 +4,7 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { AudioDownloadService } from 'src/audioDownload/audioDownload.service';
 import { Database } from 'src/types/supabase';
+import { DictionaryRepository } from './dictionary.repository.js';
 
 @Injectable()
 export class DictionaryService {
@@ -36,6 +37,10 @@ export class DictionaryService {
     usSingleUrl?: string;
   }> {
     const key = word.toLowerCase();
+    const dictionaryRepository = new DictionaryRepository(
+      this.supabase,
+      this.supabaseServer,
+    );
 
     try {
       // 1️⃣ Kiểm tra cache trước
@@ -44,11 +49,7 @@ export class DictionaryService {
       }
 
       // 2️⃣ Kiểm tra DB
-      const { data: dbData } = await this.supabase
-        .from('words')
-        .select('id, uk_ipa, us_ipa, meaning')
-        .eq('word', word)
-        .maybeSingle(); // Không throw error khi không thấy
+      const dbData = await dictionaryRepository.findWord(word); // Không throw error khi không thấy
 
       if (dbData) {
         const result = {
@@ -93,22 +94,12 @@ export class DictionaryService {
 
       // 4️⃣ Lưu vào DB + trả lại id
       this.logger.log(`Attempting to insert word "${word}" into database...`);
-      const { data: insertedWord, error: insertError } =
-        await this.supabaseServer
-          .from('words')
-          .insert({
-            word,
-            uk_ipa: ukIPA,
-            us_ipa: usIPA,
-            meaning: meaning,
-          })
-          .select('id, word, uk_ipa, us_ipa, meaning')
-          .single();
-
-      if (insertError) {
-        this.logger.error(`Failed to insert word "${word}":`, insertError);
-        throw insertError;
-      }
+      const insertedWord = await dictionaryRepository.insertWord({
+        word,
+        ukIPA,
+        usIPA,
+        meaning,
+      });
 
       this.logger.log(
         `Successfully inserted word "${word}" with id: ${insertedWord.id}`,
