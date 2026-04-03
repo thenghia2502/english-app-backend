@@ -7,8 +7,9 @@ export class AudioController {
 
   @Get('/signed-url')
   async getSignedUrl(@Query() query: { word: string; dialect: string }) {
+    const wordconfig = query.word.trim().replace(/\s+/g, '_');
     const dto = {
-      filePath: `audio/${query.dialect}/${query.word}.mp3`,
+      filePath: `audio/${query.dialect}/${wordconfig}.mp3`,
       expiresIn: 60, // thời gian hết hạn 60 giây
     };
     return this.audioService.getSignedUrl(dto);
