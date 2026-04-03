@@ -57,18 +57,27 @@ export class JwtAuthGuard implements CanActivate {
 
     const authHeader = req.headers.authorization;
     if (!authHeader || Array.isArray(authHeader)) {
-      throw new UnauthorizedException('Missing Authorization header');
+      throw new UnauthorizedException({
+        message: 'Authentication required',
+        code: 'AUTH_REQUIRED',
+      });
     }
 
     const [scheme, token] = authHeader.split(' ');
-    if (scheme.toLowerCase() !== 'bearer' || !token) {
-      throw new UnauthorizedException('Invalid Authorization format');
+    if (scheme?.toLowerCase() !== 'bearer' || !token) {
+      throw new UnauthorizedException({
+        message: 'Invalid Authorization format',
+        code: 'INVALID_AUTH_HEADER',
+      });
     }
 
     const { data, error } = await this.supabase.auth.getUser(token);
 
     if (error || !data?.user) {
-      throw new UnauthorizedException('Invalid or expired token');
+      throw new UnauthorizedException({
+        message: 'Token is invalid or expired',
+        code: 'TOKEN_INVALID_OR_EXPIRED',
+      });
     }
 
     req.user = {

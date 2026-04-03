@@ -1,4 +1,9 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Database } from 'src/types/supabase';
 
@@ -21,16 +26,28 @@ export class AuthService {
       },
     });
 
-    if (error) throw new UnauthorizedException(error.message);
+    if (error) {
+      throw new BadRequestException({
+        message: error.message,
+        code: 'SIGNUP_FAILED',
+      });
+    }
     return data;
   }
 
   async login(email: string, password: string) {
     const { data, error } = await this.supabase.auth.signInWithPassword({
-      email,
+      email: email.trim().toLowerCase(),
       password,
     });
-    if (error) throw new UnauthorizedException(error.message);
+
+    if (error) {
+      throw new UnauthorizedException({
+        message: 'Invalid login credentials',
+        code: 'INVALID_CREDENTIALS',
+      });
+    }
+
     return data;
   }
 
@@ -38,7 +55,14 @@ export class AuthService {
     const { data, error } = await this.supabase.auth.refreshSession({
       refresh_token: refreshToken,
     });
-    if (error) throw new UnauthorizedException(error.message);
+
+    if (error) {
+      throw new UnauthorizedException({
+        message: 'Token is invalid or expired',
+        code: 'TOKEN_INVALID_OR_EXPIRED',
+      });
+    }
+
     return data;
   }
 }
