@@ -73,26 +73,26 @@ export function createCurriculumRepository(
     ): Promise<T> {
       const supabase = supabaseService.createClientWithAuth(token);
 
-      const { data, error } = await supabase
-        .from('vw_curriculum_full')
-        .select('*')
-        .eq('id', curriculumId)
-        .single();
+      const { data, error } = await supabase.rpc('get_sb_by_id', {
+        p_id: curriculumId,
+      });
 
       if (error) throw new Error(error.message);
       return data as T;
     },
 
-    async findWorkBooksByCurriculumId(token: string, curriculumId: string) {
+    async findWorkBooksByCurriculumId<T = unknown>(
+      token: string,
+      curriculumId: string,
+    ): Promise<T> {
       const supabase = supabaseService.createClientWithAuth(token);
 
-      const { data, error } = await supabase
-        .from('curriculum_original')
-        .select('id')
-        .eq('student_book_id', curriculumId);
+      const { data, error } = await supabase.rpc('get_wb_by_id', {
+        p_id: curriculumId,
+      });
 
       if (error) throw new Error(error.message);
-      return data ?? [];
+      return data as T;
     },
   };
 }
