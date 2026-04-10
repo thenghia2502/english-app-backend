@@ -10,6 +10,13 @@ import {
 import { WordService } from 'src/word/word.service';
 import { DictionaryService } from 'src/dictionary/dictionary.service';
 
+type UploadedFileInput = {
+  path?: string;
+  buffer?: Buffer;
+  originalname?: string;
+  filename?: string;
+};
+
 @Injectable()
 export class FileService {
   constructor(
@@ -19,7 +26,7 @@ export class FileService {
     private readonly dictionaryService: DictionaryService,
   ) {}
 
-  async parseUploadedFile(file: Express.Multer.File): Promise<ImportedRow[]> {
+  async parseUploadedFile(file: UploadedFileInput): Promise<ImportedRow[]> {
     if (file.path) {
       return readFileFromClient(file.path);
     }
@@ -28,7 +35,7 @@ export class FileService {
       throw new BadRequestException('Unsupported upload format');
     }
 
-    const filename = file.originalname || 'uploaded.txt';
+    const filename = file.originalname || file.filename || 'uploaded.txt';
     const ext = filename.split('.').pop()?.toLowerCase() || '';
 
     if (ext === 'xlsx' || ext === 'xls') {
@@ -148,7 +155,7 @@ export class FileService {
     return Array.from(map.values());
   }
 
-  async readFile(file: Express.Multer.File) {
+  async readFile(file: UploadedFileInput) {
     const rows = await this.parseUploadedFile(file);
     const uniqueValidRows = this.deduplicateRows(rows);
     const returnedRows: {

@@ -21,6 +21,10 @@ export interface CurriculumRepository {
     token: string,
     query: CurriculumListQuery,
   ): Promise<CurriculumListResult<T>>;
+  findCurriculumById<T = unknown>(
+    curriculumId: string,
+    token: string,
+  ): Promise<T>;
   findById<T = unknown>(curriculumId: string, token: string): Promise<T>;
   findWorkBooksByCurriculumId(
     token: string,
@@ -65,6 +69,22 @@ export function createCurriculumRepository(
           totalPages: count ? Math.ceil(count / limit) : 0,
         },
       };
+    },
+
+    async findCurriculumById<T = unknown>(
+      curriculumId: string,
+      token: string,
+    ): Promise<T> {
+      const supabase = supabaseService.createClientWithAuth(token);
+
+      const { data, error } = await supabase
+        .from('vw_curriculum_full')
+        .select('*')
+        .eq('id', curriculumId)
+        .maybeSingle();
+
+      if (error) throw new Error(error.message);
+      return data as T;
     },
 
     async findById<T = unknown>(
