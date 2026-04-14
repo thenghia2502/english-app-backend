@@ -39,7 +39,13 @@ dotenv.config();
           );
         }
 
-        return createClient<Database>(supabaseUrl, supabaseKey);
+        return createClient<Database>(supabaseUrl, supabaseKey, {
+          auth: {
+            flowType: 'pkce', // 🔥 BẮT BUỘC
+            autoRefreshToken: false,
+            persistSession: false,
+          },
+        });
       },
       inject: [ConfigService],
     },

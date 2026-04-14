@@ -23,7 +23,9 @@
     "noFallthroughCasesInSwitch": false,
     "strict": true,
     "strictNullChecks": true,
-    "noImplicitAny": true
+    "noImplicitAny": true,
+    "rootDir": "./src",
+    "ignoreDeprecations": "5.0"
   },
   "include": ["src", "src/types"]
 }
