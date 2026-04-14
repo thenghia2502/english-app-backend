@@ -101,7 +101,10 @@ export async function parseAndValidateWords(
     let status: ImportStatus = 'new';
 
     if (wordInDb) {
-      const existsInUnit = await repo.checkWordExistsInUnit(unitId, wordInDb.id);
+      const existsInUnit = await repo.checkWordExistsInUnit(
+        unitId,
+        wordInDb.id,
+      );
       status = existsInUnit ? 'exists_in_unit' : 'exists';
     }
 

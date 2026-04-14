@@ -97,7 +97,6 @@ export class AudioDownloadService {
     };
 
     const ukSigned = await repo.getSignedUrl(`audio/uk/${word}.mp3`, 60);
-    const ukErr = !ukSigned;
 
     if (!ukSigned) {
       const urls = await this.getAudioUrls(word);
@@ -129,7 +128,6 @@ export class AudioDownloadService {
     result.storageUrls.ukStorageUrl = ukSigned || '';
 
     const usSigned = await repo.getSignedUrl(`audio/us/${word}.mp3`, 60);
-    const usErr = !usSigned;
 
     if (!usSigned) {
       const urls = await this.getAudioUrls(word);

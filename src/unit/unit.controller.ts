@@ -32,7 +32,7 @@ export class UnitController {
     if (!req.user?.accessToken) {
       throw new UnauthorizedException();
     }
-    return await this.unitService.addWordToUnit(
+    return this.unitService.addWordToUnit(
       body.unitId,
       body.wordIds,
       req.user.accessToken,
@@ -44,7 +44,7 @@ export class UnitController {
   async checkWordInUnit(
     @Body() body: { unitId: string; wordId: string; userId: string },
   ) {
-    return await this.unitService.checkWordInUnit(
+    return this.unitService.checkWordInUnit(
       body.unitId,
       body.wordId,
       body.userId,

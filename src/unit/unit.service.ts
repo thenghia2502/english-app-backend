@@ -16,7 +16,7 @@ export class UnitService {
     private readonly supabaseService: SupabaseService,
   ) {}
 
-  getAllUnits(token: string) {
+  getAllUnits(token: string): Promise<Record<string, unknown>[]> {
     const unitRepository = new UnitRepository(
       this.supabaseService,
       this.supabaseServer,
@@ -24,7 +24,11 @@ export class UnitService {
     return unitRepository.getAllUnits(token);
   }
 
-  addWordToUnit(unitId: string, wordIds: string[], token: string) {
+  addWordToUnit(
+    unitId: string,
+    wordIds: string[],
+    token: string,
+  ): Promise<unknown> {
     const unitRepository = new UnitRepository(
       this.supabaseService,
       this.supabaseServer,
@@ -32,7 +36,11 @@ export class UnitService {
     return unitRepository.addWordToUnit(unitId, wordIds, token);
   }
 
-  checkWordInUnit(unitId: string, wordId: string, userId: string) {
+  checkWordInUnit(
+    unitId: string,
+    wordId: string,
+    userId: string,
+  ): Promise<unknown> {
     const unitRepository = new UnitRepository(
       this.supabaseService,
       this.supabaseServer,
