@@ -9,12 +9,12 @@
     "node": ">=20.18.1"
   },
   "scripts": {
-    "build": "nest build",
+    "build": "node --max-old-space-size=4096 ./node_modules/@nestjs/cli/bin/nest.js build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
-    "start:debug": "nest start --debug --watch",
-    "prestart:prod": "nest build",
+    "start": "node --max-old-space-size=4096 ./node_modules/@nestjs/cli/bin/nest.js start",
+    "start:dev": "node --max-old-space-size=4096 ./node_modules/@nestjs/cli/bin/nest.js start --watch",
+    "start:debug": "node --max-old-space-size=4096 ./node_modules/@nestjs/cli/bin/nest.js start --debug --watch",
+    "prestart:prod": "node --max-old-space-size=4096 ./node_modules/@nestjs/cli/bin/nest.js build",
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
